@@ -94,6 +94,7 @@
                 <include name="**/*.xml"/>
                 <include name="**/*.png"/>
                 <include name="**/*.jpg"/>
+                <include name="**/*.bin"/>
             </fileset>
         </copy>
 
