@@ -37,7 +37,6 @@ public class VirtualKeyboard extends DCPUHardware
     }
 
     public void keyTyped(int i) {
-        System.out.println("Type " + i);
         if (powered) {
             if (i < 20 || i >= 127) return;
             if (keyBuffer[kwp & 0x3F] == 0) {
@@ -48,7 +47,6 @@ public class VirtualKeyboard extends DCPUHardware
     }
 
     public void keyPressed(int key) {
-        System.out.println("Press " + key);
         if (powered) {
             int i = keyMapping.getKey(key);
             if (i < 0) return;
@@ -61,7 +59,6 @@ public class VirtualKeyboard extends DCPUHardware
     }
 
     public void keyReleased(int key) {
-        System.out.println("Release " + key);
         if (powered) {
             int i = keyMapping.getKey(key);
             if (i < 0) return;
