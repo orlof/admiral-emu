@@ -542,8 +542,7 @@ public class DCPU
         }).start();
     }
 
-    public void load(File file) throws IOException {
-        DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
+    public void load(DataInputStream dis) throws IOException {
         int i = 0;
         try {
             for (; i<ram.length; i++) {
@@ -559,23 +558,16 @@ public class DCPU
         }
     }
 
-    public void save(File file) throws IOException {
-        DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
-        try {
-            for (int i = 0; i<ram.length; i++) {
-                dos.writeChar(ram[i]);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        dos.close();
-    }
-
     public static void main(String[] args) throws Exception {
         final DCPU dcpu = new DCPU();
 
-        String bootrom = args.length == 0 ? "admiral.bin": args[0];
-        dcpu.load(new File(bootrom));
+        DataInputStream dis = null;
+        if(args.length == 0) {
+            dis = new DataInputStream(new BufferedInputStream(DCPU.class.getResourceAsStream("admiral.bin")));
+        } else {
+            dis = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(args[0]))));
+        }
+        dcpu.load(dis);
 
         final VirtualKeyboard kbd = new VirtualKeyboard(new AWTKeyMapping(true));
         kbd.connectTo(dcpu);
@@ -616,4 +608,5 @@ public class DCPU
         dcpu.run();
         view.canvas.setup();
     }
+
 }
