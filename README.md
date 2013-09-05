@@ -1,7 +1,8 @@
-admiral-emu
-===========
+=====================
+DCPU Admiral Emulator
+=====================
 
-admiral off-the-shelf testbed with monitor and keyboard
+<i>admiral off-the-shelf testbed with monitor and keyboard</i>
 
 USAGE
 
