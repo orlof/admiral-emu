@@ -1,3 +1,5 @@
+package org.megastage.emulator;
+
 import java.util.Random;
 
 public abstract class DCPUHardware

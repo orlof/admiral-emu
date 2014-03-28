@@ -1,3 +1,5 @@
+package org.megastage.emulator;
+
 public class VirtualKeyboard extends DCPUHardware
 {
     public static final int KEY_BACKSPACE = 16;
@@ -19,17 +21,10 @@ public class VirtualKeyboard extends DCPUHardware
     private boolean doInterrupt;
     private boolean powered;
 
-    private String id = "Generic Keyboard";
-
-    public VirtualKeyboard(String id, KeyMapping keyMapping)
+    public VirtualKeyboard(KeyMapping keyMapping)
     {
         super(0x30cf7406, 0x1337, 0x1EB37E91);
         this.keyMapping = keyMapping;
-        this.id = id;
-    }
-
-    public VirtualKeyboard(KeyMapping keyMapping) {
-        this("Generic Keyboard", keyMapping);
     }
 
     public boolean isPowered() {
@@ -97,14 +92,6 @@ public class VirtualKeyboard extends DCPUHardware
             if (interruptMessage != 0) dcpu.interrupt(interruptMessage);
             doInterrupt = false;
         }
-    }
-
-    public String getID() {
-        return id ;
-    }
-
-    public void setID(String id) {
-        this.id = id;
     }
 
     @Override

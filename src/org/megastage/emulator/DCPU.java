@@ -1,3 +1,5 @@
+package org.megastage.emulator;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -542,7 +544,8 @@ public class DCPU
         }).start();
     }
 
-    public void load(DataInputStream dis) throws IOException {
+    public void load(InputStream is) throws IOException {
+        DataInputStream dis = new DataInputStream(new BufferedInputStream(is));
         int i = 0;
         try {
             for (; i<ram.length; i++) {
@@ -554,6 +557,7 @@ public class DCPU
             for (; i<ram.length; i++) {
                 ram[i] = 0;
             }
+        } finally {
             dis.close();
         }
     }
@@ -561,16 +565,31 @@ public class DCPU
     public static void main(String[] args) throws Exception {
         final DCPU dcpu = new DCPU();
 
-        DataInputStream dis = null;
-        if(args.length == 0) {
-            dis = new DataInputStream(new BufferedInputStream(DCPU.class.getResourceAsStream("admiral.bin")));
+        if(args.length > 0) {
+            InputStream is = new FileInputStream(new File(args[0]));
+            dcpu.load(is);
         } else {
-            dis = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(args[0]))));
+            InputStream is = DCPU.class.getResourceAsStream("admiral.bin");
+            dcpu.load(is);
         }
-        dcpu.load(dis);
+
+        final VirtualClock clock = new VirtualClock();
+        clock.connectTo(dcpu);
 
         final VirtualKeyboard kbd = new VirtualKeyboard(new AWTKeyMapping(true));
         kbd.connectTo(dcpu);
+
+        final VirtualFloppyDrive floppy = new VirtualFloppyDrive();
+        floppy.connectTo(dcpu);
+
+        if(args.length > 1) {
+            InputStream is = new FileInputStream(new File(args[1]));
+            floppy.insert(new FloppyDisk(is));
+        } else {
+            InputStream is = DCPU.class.getResourceAsStream("floppy.bin");
+            floppy.insert(new FloppyDisk(is));
+        }
+
 
         KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
         manager.addKeyEventDispatcher(new KeyEventDispatcher() {

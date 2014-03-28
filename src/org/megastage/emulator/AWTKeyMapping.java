@@ -1,3 +1,5 @@
+package org.megastage.emulator;
+
 public class AWTKeyMapping extends KeyMapping
 {
   public AWTKeyMapping(boolean useLowercase)
