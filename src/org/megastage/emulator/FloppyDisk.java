@@ -1,25 +1,23 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+package org.megastage.emulator;
+
+import java.io.*;
 
 public class FloppyDisk {
-	private String id;
 	public char[] data = new char[737280];
 
 	private boolean writeProtected;
 	private VirtualFloppyDrive drive;
 
-	public FloppyDisk(String id) {
-		this.id = id;
-	}
-	
-	public void load(File file) throws IOException {
-		DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
+    public FloppyDisk(InputStream is) {
+        try {
+            load(is);
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+    }
+    
+	public void load(InputStream is) throws IOException {
+		DataInputStream dis = new DataInputStream(new BufferedInputStream(is));
 		int i = 0;
 		try {
 			for (; i<data.length; i++) {
@@ -31,6 +29,7 @@ public class FloppyDisk {
 			for (; i<data.length; i++) {
 				data[i] = 0;
 			}
+        } finally {
 			dis.close();
 		}	
 	}
@@ -55,14 +54,6 @@ public class FloppyDisk {
 		this.writeProtected = writeProtected;
 	}
 
-	public String getID() {
-		return id;
-	}
-
-	public void setID(String id) {
-		this.id = id;
-	}
-	
 	public void inserted(VirtualFloppyDrive drive)
 	{
 		this.drive = drive;

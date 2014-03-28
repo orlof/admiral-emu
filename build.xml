@@ -152,7 +152,7 @@
 
                 <attribute name="Build-By" value="Orlof"/>
 
-                <attribute name="Main-Class" value="DCPU"/>
+                <attribute name="Main-Class" value="org.megastage.emulator.DCPU"/>
                 <attribute name="Class-Path" value="${manifest.classpath}"/>
             </manifest>
         </jar>

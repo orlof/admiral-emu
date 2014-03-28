@@ -1,13 +1,11 @@
+package org.megastage.emulator;
+
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
 public class VirtualMonitor extends DCPUHardware
 {
-    public static final int WIDTH_CHARS = 32;
-    public static final int HEIGHT_CHARS = 12;
-    public static final int WIDTH_PIXELS = 128;
-    public static final int HEIGHT_PIXELS = 96;
     private int[] palette = new int[16];
     private char[] font = new char[256];
     public int[] pixels = new int[12289];
@@ -16,15 +14,8 @@ public class VirtualMonitor extends DCPUHardware
     private int paletteMemMap;
     private int borderColor = 0;
 
-    private String id = "LEM1802";
-
-    public VirtualMonitor(String id) {
-        super(0x7349f615, 0x1802, 0x1c6c8b36);
-        this.id = id;
-    }
-
     public VirtualMonitor() {
-        this("LEM1802");
+        super(0x7349f615, 0x1802, 0x1c6c8b36);
     }
 
     private void resetFont() {
@@ -184,14 +175,6 @@ public class VirtualMonitor extends DCPUHardware
         synchronized (this) {
             this.pixels = pixels;
         }
-    }
-
-    public String getID() {
-        return id ;
-    }
-
-    public void setID(String id) {
-        this.id = id;
     }
 
     @Override
