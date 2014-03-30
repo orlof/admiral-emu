@@ -1,65 +1,42 @@
 package org.megastage.emulator;
 
-public class VirtualKeyboard extends DCPUHardware
-{
-    public static final int KEY_BACKSPACE = 16;
-    public static final int KEY_RETURN = 17;
-    public static final int KEY_INSERT = 18;
-    public static final int KEY_DELETE = 19;
-    public static final int KEY_UP = 128;
-    public static final int KEY_DOWN = 129;
-    public static final int KEY_LEFT = 130;
-    public static final int KEY_RIGHT = 131;
-    public static final int KEY_SHIFT = 144;
-    public static final int KEY_CONTROL = 145;
-    private KeyMapping keyMapping;
+public class VirtualKeyboard extends DCPUHardware {
     private char[] keyBuffer = new char[64];
     private int krp;
     private int kwp;
     private boolean[] isDown = new boolean[256];
     private char interruptMessage;
     private boolean doInterrupt;
-    private boolean powered;
 
-    public VirtualKeyboard(KeyMapping keyMapping)
-    {
+    public VirtualKeyboard() {
         super(0x30cf7406, 0x1337, 0x1EB37E91);
-        this.keyMapping = keyMapping;
     }
 
-    public boolean isPowered() {
-        return powered;
-    }
-
-    public void keyTyped(int i) {
-        if (powered) {
-            if (i < 20 || i >= 127) return;
-            if (keyBuffer[kwp & 0x3F] == 0) {
-                keyBuffer[kwp++ & 0x3F] = (char)i;
-                doInterrupt = true;
-            }
-        }
-    }
-
-    public void keyPressed(int key) {
-        if (powered) {
-            int i = keyMapping.getKey(key);
-            if (i < 0) return;
-            if ((i < 20 || i >= 127) && keyBuffer[kwp & 0x3F] == 0) {
-                keyBuffer[kwp++ & 0x3F] = (char)i;
-            }
-            isDown[i] = true;
+    public void keyTyped(int keyCode, char keyChar) {
+        if (keyChar < 0x20 || keyChar >= 127) return;
+        if (keyBuffer[kwp & 0x3F] == 0) {
+            keyBuffer[kwp++ & 0x3F] = keyChar;
             doInterrupt = true;
         }
     }
 
-    public void keyReleased(int key) {
-        if (powered) {
-            int i = keyMapping.getKey(key);
-            if (i < 0) return;
-            isDown[i] = false;
-            doInterrupt = true;
+    public void keyPressed(int keyCode, char keyChar) {
+        char c = dcpuChar(keyCode, keyChar);
+        if (c == 0) return;
+
+        if((c != keyChar) && keyBuffer[kwp & 0x3F] == 0) {
+            keyBuffer[kwp++ & 0x3F] = c;
         }
+
+        isDown[c] = true;
+        doInterrupt = true;
+    }
+
+    public void keyReleased(int keyCode, char keyChar) {
+        keyChar = dcpuChar(keyCode, keyChar);
+        if (keyChar == 0) return;
+        isDown[keyChar] = false;
+        doInterrupt = true;
     }
 
     public void interrupt() {
@@ -94,20 +71,45 @@ public class VirtualKeyboard extends DCPUHardware
         }
     }
 
-    @Override
-    public void powerOff() {
-        this.powered = false;
-        this.keyBuffer = new char[64];
-        this.krp = 0;
-        this.kwp = 0;
-        this.isDown = new boolean[256];
-        this.interruptMessage = 0;
-        this.doInterrupt = false;
-    }
+    private char dcpuChar(int keyCode, char keyChar) {
+        if (keyCode >= 0x20 && keyCode < 0x79 && keyChar != 65535) {
+            if(keyChar >= 0x20 && keyChar < 0x79) return keyChar;
+            return (char) keyCode;
+        }
 
-    @Override
-    public void powerOn() {
-        this.powered = true;
-    }
+        switch(keyCode) {
+            case 8:
+                // BACKSPACE
+                return 0x10;
+            case 10:
+                // RETURN
+                return 0x11;
+            case 155:
+                // INSERT
+                return 0x12;
+            case 127:
+                // DELETE
+                return 0x13;
+            case 38:
+                // UP
+                return 0x80;
+            case 40:
+                // DOWN
+                return 0x81;
+            case 37:
+                // LEFT
+                return 0x82;
+            case 39:
+                // RIGHT
+                return 0x83;
+            case 16:
+                // SHIFT
+                return 0x90;
+            case 17:
+                // CTRL
+                return 0x91;
+        }
 
+        return 0x00;
+    }
 }
