@@ -566,17 +566,20 @@ public class DCPU
         final DCPU dcpu = new DCPU();
 
         if(args.length > 0) {
-            InputStream is = new FileInputStream(new File(args[0]));
+            File file = new File(args[0]);
+            InputStream is = new FileInputStream(file);
+            System.out.println("Loading bootrom: " + file.toString());
             dcpu.load(is);
         } else {
-            InputStream is = DCPU.class.getResourceAsStream("admiral.bin");
+            InputStream is = DCPU.class.getResourceAsStream("/admiral.bin");
+            System.out.println("Loading bootrom: " + DCPU.class.getResource("/admiral.bin").toString());
             dcpu.load(is);
         }
 
         final VirtualClock clock = new VirtualClock();
         clock.connectTo(dcpu);
 
-        final VirtualKeyboard kbd = new VirtualKeyboard(new AWTKeyMapping(true));
+        final VirtualKeyboard kbd = new VirtualKeyboard();
         kbd.connectTo(dcpu);
 
         final VirtualFloppyDrive floppy = new VirtualFloppyDrive();
@@ -586,7 +589,7 @@ public class DCPU
             InputStream is = new FileInputStream(new File(args[1]));
             floppy.insert(new FloppyDisk(is));
         } else {
-            InputStream is = DCPU.class.getResourceAsStream("floppy.bin");
+            InputStream is = DCPU.class.getResourceAsStream("/floppy.bin");
             floppy.insert(new FloppyDisk(is));
         }
 
@@ -595,12 +598,13 @@ public class DCPU
         manager.addKeyEventDispatcher(new KeyEventDispatcher() {
             @Override
             public boolean dispatchKeyEvent(KeyEvent e) {
+                //System.out.println("e = " + e);
                 if (e.getID() == KeyEvent.KEY_PRESSED) {
-                    kbd.keyPressed(e.getKeyCode());
+                    kbd.keyPressed(e.getKeyCode(), e.getKeyChar());
                 } else if (e.getID() == KeyEvent.KEY_RELEASED) {
-                    kbd.keyReleased(e.getKeyCode());
+                    kbd.keyReleased(e.getKeyCode(), e.getKeyChar());
                 } else if (e.getID() == KeyEvent.KEY_TYPED) {
-                    kbd.keyTyped(e.getKeyChar());
+                    kbd.keyTyped(e.getKeyCode(), e.getKeyChar());
                 }
                 return false;
             }
