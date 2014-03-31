@@ -598,7 +598,10 @@ public class DCPU
         manager.addKeyEventDispatcher(new KeyEventDispatcher() {
             @Override
             public boolean dispatchKeyEvent(KeyEvent e) {
-                // System.out.println("e = " + e);
+                //System.out.println("e = " + e);
+                if(e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    System.exit(0);
+                }
                 if (e.getID() == KeyEvent.KEY_PRESSED) {
                     kbd.keyPressed(e.getKeyCode(), e.getKeyChar());
                 } else if (e.getID() == KeyEvent.KEY_RELEASED) {
