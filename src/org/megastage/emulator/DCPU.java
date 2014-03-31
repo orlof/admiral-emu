@@ -619,7 +619,7 @@ public class DCPU
         LEM1802Viewer view = new LEM1802Viewer();
         view.attach(mon);
 
-        JFrame f = new JFrame();
+        JFrame f = new JFrame("Megastage DCPU Emulator");
         f.setSize(640, 400);
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
