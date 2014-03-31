@@ -12,6 +12,7 @@ public class VirtualKeyboard extends DCPUHardware {
         super(0x30cf7406, 0x1337, 0x1EB37E91);
     }
 
+/*
     public void keyTyped(int keyCode, char keyChar) {
         if (keyChar < 0x20 || keyChar >= 127) return;
         if (keyBuffer[kwp & 0x3F] == 0) {
@@ -19,23 +20,24 @@ public class VirtualKeyboard extends DCPUHardware {
             doInterrupt = true;
         }
     }
-
+*/
     public void keyPressed(int keyCode, char keyChar) {
         char c = dcpuChar(keyCode, keyChar);
         if (c == 0) return;
 
-        if((c != keyChar) && keyBuffer[kwp & 0x3F] == 0) {
+        isDown[c] = true;
+
+        if(keyBuffer[kwp & 0x3F] == 0) {
             keyBuffer[kwp++ & 0x3F] = c;
         }
 
-        isDown[c] = true;
         doInterrupt = true;
     }
 
     public void keyReleased(int keyCode, char keyChar) {
-        keyChar = dcpuChar(keyCode, keyChar);
-        if (keyChar == 0) return;
-        isDown[keyChar] = false;
+        char c = dcpuChar(keyCode, keyChar);
+        if (c == 0) return;
+        isDown[c] = false;
         doInterrupt = true;
     }
 
@@ -72,9 +74,8 @@ public class VirtualKeyboard extends DCPUHardware {
     }
 
     private char dcpuChar(int keyCode, char keyChar) {
-        if (keyCode >= 0x20 && keyCode < 0x79 && keyChar != 65535) {
-            if(keyChar >= 0x20 && keyChar < 0x79) return keyChar;
-            return (char) keyCode;
+        if(keyChar >= 0x20 && keyChar < 0x79) {
+            return keyChar;
         }
 
         switch(keyCode) {
@@ -108,6 +109,10 @@ public class VirtualKeyboard extends DCPUHardware {
             case 17:
                 // CTRL
                 return 0x91;
+        }
+
+        if(keyCode >= 0x20 && keyCode < 0x79) {
+            return (char) keyCode;
         }
 
         return 0x00;
