@@ -1,6 +1,8 @@
 package org.megastage.emulator;
 
 import javax.swing.*;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.*;
@@ -633,6 +635,59 @@ public class DCPU
 
         dcpu.run();
         view.canvas.setup();
+    }
+
+    private void initDebugger() {
+        JFrame f = new JFrame("Megastage DCPU Debugger");
+        f.setSize(800, 600);
+        f.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+
+        JPanel p = new JPanel();
+        p.setLayout(new BorderLayout());
+
+        p.add(getEditor(), BorderLayout.CENTER);
+        p.add(getMonitor(), BorderLayout.SOUTH);
+
+        f.getContentPane().add(p);
+        f.setLocationByPlatform(true);
+        f.setVisible(true);
+    }
+
+    private JComponent getMonitor() {
+        return new JPanel();
+    }
+    private JComponent getEditor() {
+        JTable table = new JTable(new MyTableModel());
+        table.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
+        JScrollPane scrollPane = new JScrollPane(table);
+        table.setFillsViewportHeight(true);
+        return scrollPane;
+    }
+
+    static class MyTableModel extends AbstractTableModel {
+
+        @Override
+        public int getRowCount() {
+            return 100;
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 2;
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            if(columnIndex == 0) {
+                if(rowIndex % 2 == 0) {
+                    return "0x1000\n0x2000\n0x3000";
+                } else {
+                    return "0x1000";
+                }
+            } else {
+                return "BLLLAAAS dgfkjdfgh dgfdfjghdfkj dfgdfkjgh dfdgfkjghdfg dfgdhfkgdfg";
+            }
+        }
     }
 
 }
