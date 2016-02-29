@@ -633,6 +633,8 @@ public class DCPU
         f.setVisible(true);
         f.createBufferStrategy(2);
 
+        dcpu.initDebugger();
+
         dcpu.run();
         view.canvas.setup();
     }
@@ -653,14 +655,23 @@ public class DCPU
         f.setVisible(true);
     }
 
+    private void scroll(JTable table, int row) {
+        table.getSelectionModel().setSelectionInterval(row, row);
+        table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
+    }
+
     private JComponent getMonitor() {
         return new JPanel();
     }
     private JComponent getEditor() {
         JTable table = new JTable(new MyTableModel());
+        table.setFont(new Font("monospaced", Font.PLAIN, 10));
         table.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
-        JScrollPane scrollPane = new JScrollPane(table);
         table.setFillsViewportHeight(true);
+        table.getColumnModel().getColumn(0).setPreferredWidth(100);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        JScrollPane scrollPane = new JScrollPane(table);
         return scrollPane;
     }
 
@@ -668,12 +679,20 @@ public class DCPU
 
         @Override
         public int getRowCount() {
-            return 100;
+            return 3;
         }
 
         @Override
         public int getColumnCount() {
             return 2;
+        }
+
+        public Class<String> getColumnClass(int columnIndex) {
+            return String.class;
+        }
+
+        public boolean isCellEditable(int row, int column) {
+            return false;
         }
 
         @Override
