@@ -2,7 +2,6 @@ package org.megastage.emulator;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableModel;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.*;
@@ -16,6 +15,8 @@ import java.util.List;
  */
 public class DCPU
 {
+    public static DebugData debugData;
+
     public char[] ram = new char[65536];
     public char pc;
     public char sp;
@@ -568,10 +569,14 @@ public class DCPU
         final DCPU dcpu = new DCPU();
 
         if(args.length > 0) {
-            File file = new File(args[0]);
+            File file = new File(args[0]).getAbsoluteFile();
             InputStream is = new FileInputStream(file);
             System.out.println("Loading bootrom: " + file.toString());
             dcpu.load(is);
+            is.close();
+
+            debugData = DebugData.load(args[0] + ".dbg");
+
         } else {
             InputStream is = DCPU.class.getResourceAsStream("/admiral.bin");
             System.out.println("Loading bootrom: " + DCPU.class.getResource("/admiral.bin").toString());
@@ -661,8 +666,20 @@ public class DCPU
     }
 
     private JComponent getMonitor() {
-        return new JPanel();
+        JPanel p = new JPanel();
+        p.setLayout(new BorderLayout());
+
+        JTable table = new JTable(new RegisterTableModel());
+        table.setFont(new Font("monospaced", Font.PLAIN, 10));
+//        table.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
+        table.setFillsViewportHeight(true);
+
+        p.add(table, BorderLayout.LINE_START);
+
+
+        return p;
     }
+
     private JComponent getEditor() {
         JTable table = new JTable(new MyTableModel());
         table.setFont(new Font("monospaced", Font.PLAIN, 10));
@@ -675,11 +692,50 @@ public class DCPU
         return scrollPane;
     }
 
-    static class MyTableModel extends AbstractTableModel {
+    class RegisterTableModel extends AbstractTableModel {
 
         @Override
         public int getRowCount() {
-            return 3;
+            return 11;
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 2;
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            if(columnIndex == 0) {
+                if (rowIndex < 8) {
+                    return " " + "ABCXYZIJ".charAt(rowIndex) + " " + String.format("%04X", (int) registers[rowIndex]);
+                } else if (rowIndex == 8) {
+                    return "SP " + String.format("%04X", (int) sp);
+                } else if (rowIndex == 9) {
+                    return "PC " + String.format("%04X", (int) pc);
+                } else if (rowIndex == 10) {
+                    return "EX " + String.format("%04X", (int) ex);
+                }
+            } else {
+                if (rowIndex < 8) {
+                    return " [" + "ABCXYZIJ".charAt(rowIndex) + "] " + String.format("%04X", (int) ram[(int) registers[rowIndex]]);
+                } else if (rowIndex == 8) {
+                    return "[SP] " + String.format("%04X", (int) ram[(int) sp]);
+                } else if (rowIndex == 9) {
+                    return "[PC] " + String.format("%04X", (int) ram[(int) pc]);
+                } else if (rowIndex == 10) {
+                    return "[EX] " + String.format("%04X", (int) ram[(int) ex]);
+                }
+            }
+            return null;
+        }
+    }
+
+    class MyTableModel extends AbstractTableModel {
+
+        @Override
+        public int getRowCount() {
+            return debugData.lines.size();
         }
 
         @Override
@@ -698,15 +754,14 @@ public class DCPU
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             if(columnIndex == 0) {
-                if(rowIndex % 2 == 0) {
-                    return "0x1000\n0x2000\n0x3000";
-                } else {
-                    return "0x1000";
+                String s = "";
+                for(Integer addr: debugData.lines.get(rowIndex).mem) {
+                    s = s + "" + String.format("%04X", addr) + " " + String.format("%04X", (int) ram[addr]) + "\n";
                 }
+                return s;
             } else {
-                return "BLLLAAAS dgfkjdfgh dgfdfjghdfkj dfgdfkjgh dfdgfkjghdfg dfgdhfkgdfg";
+                return debugData.lines.get(rowIndex).text;
             }
         }
     }
-
 }
