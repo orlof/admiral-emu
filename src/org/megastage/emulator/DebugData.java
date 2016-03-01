@@ -11,7 +11,7 @@ public class DebugData {
     public HashMap<String, String> defines = new HashMap<>();
     public HashMap<String, String> labels = new HashMap<>();
     public List<LineData> lines = new ArrayList<>(65536);
-    public List<LineData> memory = new ArrayList<>(65536);
+    public int[] memToLineNum = new int[65536];
 
     public static DebugData load(String filename) throws IOException {
         DebugData me = new DebugData();
@@ -28,7 +28,11 @@ public class DebugData {
 
         String filename = br.readLine();
         while(filename != null) {
-            lines.add(new LineData(filename, br));
+            LineData ld = new LineData(filename, br);
+            for(int addr: ld.mem) {
+                memToLineNum[addr] = lines.size();
+            }
+            lines.add(ld);
             filename = br.readLine();
         }
     }
