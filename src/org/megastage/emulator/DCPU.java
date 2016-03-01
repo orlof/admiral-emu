@@ -1,8 +1,12 @@
 package org.megastage.emulator;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.ArrayList;
@@ -23,7 +27,7 @@ public class DCPU
     public char ex;
     public char ia;
     public char[] registers = new char[8];
-    public int cycles;
+    public long cycles;
     protected ArrayList<DCPUHardware> hardware = new ArrayList<DCPUHardware>();
 
     protected static volatile boolean stop = false;
@@ -480,6 +484,7 @@ public class DCPU
             }
             set(baddr, b);
         }
+        registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
     }
 
     public void interrupt(char a)
@@ -519,49 +524,59 @@ public class DCPU
         (new Thread() {
             @Override
             public void run() {
-                for (DCPUHardware hw : hardware) {
-                    hw.powerOn();
-                }
-                int hz = 1000 * khz;
-                int cyclesPerFrame = hz / 60 + 1;
-
-                long nsPerFrame = 16666666L;
-                long nextTime = System.nanoTime();
-
-                while (true) {
-                    while (System.nanoTime() < nextTime) {
-                        try {
-                            Thread.sleep(1L);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    while (cycles < cyclesPerFrame) {
-                        tick();
-                    }
-                    tickHardware();
-                    cycles -= cyclesPerFrame;
-                    nextTime += nsPerFrame;
-                }
+                running = true;
+                executeRun();
             }
         }).start();
     }
 
+    private boolean running = false;
+
+    private void executeRun() {
+        int hz = 100 * khz;
+        int cyclesPerFrame = hz / 60 + 1;
+
+        long nsPerFrame = 16666666L;
+        long nextFrameTime = System.nanoTime();
+
+        while (running) {
+            while (System.nanoTime() < nextFrameTime) {
+                try {
+                    Thread.sleep(1L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            long cyclesFrameEnd = cycles + cyclesPerFrame;
+
+            while (cycles < cyclesFrameEnd) {
+                tick();
+            }
+            tickHardware();
+            nextFrameTime += nsPerFrame;
+        }
+    }
+
+    private void tickle() {
+        tick();
+        tickHardware();
+        editorTable.setRowSelectionInterval(debugData.memToLineNum[pc], debugData.memToLineNum[pc]);
+        registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 0, 11));
+    }
+
     public void load(InputStream is) throws IOException {
-        DataInputStream dis = new DataInputStream(new BufferedInputStream(is));
         int i = 0;
-        try {
-            for (; i<ram.length; i++) {
+        try (DataInputStream dis = new DataInputStream(new BufferedInputStream(is))) {
+            for (; i < ram.length; i++) {
                 ram[i] = dis.readChar();
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             e.printStackTrace();
         } catch (IOException e) {
-            for (; i<ram.length; i++) {
+            for (; i < ram.length; i++) {
                 ram[i] = 0;
             }
-        } finally {
-            dis.close();
         }
     }
 
@@ -640,7 +655,12 @@ public class DCPU
 
         dcpu.initDebugger();
 
-        dcpu.run();
+        for (DCPUHardware hw : dcpu.hardware) {
+            hw.powerOn();
+        }
+
+        // dcpu.run();
+
         view.canvas.setup();
     }
 
@@ -665,30 +685,62 @@ public class DCPU
         table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
     }
 
+
     private JComponent getMonitor() {
-        JPanel p = new JPanel();
-        p.setLayout(new BorderLayout());
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setLayout(new BorderLayout());
 
-        JTable table = new JTable(new RegisterTableModel());
-        table.setFont(new Font("monospaced", Font.PLAIN, 10));
-//        table.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
-        table.setFillsViewportHeight(true);
+        JPanel registerPanel = new JPanel();
+        registerPanel.setLayout(new BorderLayout());
 
-        p.add(table, BorderLayout.LINE_START);
+        JTable registerTable = new JTable(registerTableModel);
+        registerTable.setFont(new Font("monospaced", Font.PLAIN, 10));
+        registerTable.setFillsViewportHeight(true);
 
+        registerPanel.add(registerTable, BorderLayout.CENTER);
 
-        return p;
+        JPanel controlButtonPanel = new JPanel();
+        controlButtonPanel.setLayout(new GridLayout(1, 4));
+        controlButtonPanel.add(createJButton("Over", e -> {
+        }));
+        controlButtonPanel.add(createJButton("Into", e -> {
+            if(!running) {
+                tickle();
+            }
+        }));
+        controlButtonPanel.add(createJButton("Run", e -> {
+            if (!running) {
+                running = true;
+                run();
+            }
+        }));
+        controlButtonPanel.add(createJButton("Pause", e -> {
+            running = false;
+        }));
+        registerPanel.add(controlButtonPanel, BorderLayout.PAGE_START);
+
+        bottomPanel.add(registerPanel, BorderLayout.LINE_START);
+
+        return bottomPanel;
     }
 
-    private JComponent getEditor() {
-        JTable table = new JTable(new MyTableModel());
-        table.setFont(new Font("monospaced", Font.PLAIN, 10));
-        table.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
-        table.setFillsViewportHeight(true);
-        table.getColumnModel().getColumn(0).setPreferredWidth(100);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+    private JButton createJButton(String label, ActionListener listener) {
+        JButton button = new JButton(label);
+        button.addActionListener(listener);
+        return button;
+    }
 
-        JScrollPane scrollPane = new JScrollPane(table);
+    private RegisterTableModel registerTableModel = new RegisterTableModel();
+    private JTable editorTable = new JTable(new MyTableModel());
+
+    private JComponent getEditor() {
+        editorTable.setFont(new Font("monospaced", Font.PLAIN, 10));
+        editorTable.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
+        editorTable.setFillsViewportHeight(true);
+        editorTable.getColumnModel().getColumn(0).setPreferredWidth(100);
+        editorTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        JScrollPane scrollPane = new JScrollPane(editorTable);
         return scrollPane;
     }
 
@@ -696,7 +748,7 @@ public class DCPU
 
         @Override
         public int getRowCount() {
-            return 11;
+            return 12;
         }
 
         @Override
@@ -715,6 +767,8 @@ public class DCPU
                     return "PC " + String.format("%04X", (int) pc);
                 } else if (rowIndex == 10) {
                     return "EX " + String.format("%04X", (int) ex);
+                } else if (rowIndex == 11) {
+                    return "" + String.format("%012d", cycles);
                 }
             } else {
                 if (rowIndex < 8) {

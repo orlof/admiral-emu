@@ -184,9 +184,9 @@ public class VirtualFloppyDrive extends DCPUHardware {
         private int type;
         private int sector;
         private int memory;
-        private int cycles;
+        private long cycles;
 
-        public FloppyOperation(int type, int sector, int memory, int cycles) {
+        public FloppyOperation(int type, int sector, int memory, long cycles) {
             this.type = type;
             this.sector = sector;
             this.memory = memory;
@@ -205,7 +205,7 @@ public class VirtualFloppyDrive extends DCPUHardware {
         this.interruptsEnabled = false;
         this.message = 0;
         this.track = 0;
-        this.operation = new FloppyOperation(FloppyOperation.NONE, 0, 0, Integer.MAX_VALUE);
+        this.operation = new FloppyOperation(FloppyOperation.NONE, 0, 0, Long.MAX_VALUE);
     }
 
     @Override
