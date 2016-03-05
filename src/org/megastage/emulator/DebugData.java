@@ -12,12 +12,16 @@ public class DebugData {
     public HashMap<String, String> labels = new HashMap<>();
     public List<LineData> lines = new ArrayList<>(65536);
     public int[] memToLineNum = new int[65536];
+    public String[] memToLabel = new String[65536];
+
+    private int curAddr = 0;
 
     public static DebugData load(String filename) throws IOException {
         DebugData me = new DebugData();
 
         BufferedReader br = new BufferedReader(new FileReader(filename));
         me.init(br);
+        br.close();
 
         return me;
     }
@@ -25,6 +29,27 @@ public class DebugData {
     private void init(BufferedReader br) throws IOException {
         defines = initMap(br);
         labels = initMap(br);
+
+        for(String label: labels.keySet()) {
+            String value = labels.get(label);
+            memToLabel[Integer.parseInt(value)] = label;
+        }
+
+        String label = memToLabel[0] == null ? "MEM_START": memToLabel[0];
+        int base = 0;
+        for(int i=1; i < memToLabel.length; i++) {
+            if(memToLabel[i] == null) {
+                if(i - base < 32) {
+                    memToLabel[i] = label + " " + (i - base);
+                } else {
+                    memToLabel[i] = "";
+                }
+            } else {
+                label = memToLabel[i];
+                base = i;
+            }
+
+        }
 
         String filename = br.readLine();
         while(filename != null) {
@@ -49,7 +74,7 @@ public class DebugData {
         return map;
     }
 
-    public static class LineData {
+    public class LineData {
         public String filename;
         public int lineNum;
         public String text;
@@ -63,7 +88,11 @@ public class DebugData {
 
             mem = new ArrayList<>(len);
             for(int i=0; i < len; i++) {
-                mem.add(Integer.parseInt(br.readLine(), 16));
+                int addr = Integer.parseInt(br.readLine(), 16);
+                if(addr == curAddr) {
+                    curAddr++;
+                    mem.add(addr);
+                }
                 br.readLine();
             }
 

@@ -27,7 +27,7 @@ public class DCPU
     public char ex;
     public char ia;
     public char[] registers = new char[8];
-    public long cycles;
+    public long cycles, cycleStart;
     protected ArrayList<DCPUHardware> hardware = new ArrayList<DCPUHardware>();
 
     protected static volatile boolean stop = false;
@@ -484,7 +484,6 @@ public class DCPU
             }
             set(baddr, b);
         }
-        registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
     }
 
     public void interrupt(char a)
@@ -555,14 +554,65 @@ public class DCPU
             }
             tickHardware();
             nextFrameTime += nsPerFrame;
+            if(cycles > lastShownCycles + 10000) {
+                registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
+                lastShownCycles = cycles;
+            }
         }
+        SwingUtilities.invokeLater( () -> updateEditor(true));
     }
 
+    long lastShownCycles = 0;
+
     private void tickle() {
+        boolean isPcVisible = isCellVisible(editorTable, debugData.memToLineNum[pc], 0);
         tick();
         tickHardware();
-        editorTable.setRowSelectionInterval(debugData.memToLineNum[pc], debugData.memToLineNum[pc]);
+        updateEditor(isPcVisible);
+    }
+
+    private void updateEditor(boolean updatePc) {
         registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 0, 11));
+        stackTableModel.fireTableChanged(new TableModelEvent(stackTableModel));
+
+        editorTable.setRowSelectionInterval(debugData.memToLineNum[pc], debugData.memToLineNum[pc]);
+
+        if(updatePc) {
+            scrollToCenter(editorTable, debugData.memToLineNum[pc] + 1, 0);
+        }
+        if(sp > 0) scroll(stackTable, 65535 - (int) sp);
+    }
+
+    public static void scrollToCenter(JTable table, int rowIndex, int vColIndex) {
+        if (!(table.getParent() instanceof JViewport)) {
+            return;
+        }
+        JViewport viewport = (JViewport) table.getParent();
+        Rectangle rect = table.getCellRect(rowIndex, vColIndex, true);
+        Rectangle viewRect = viewport.getViewRect();
+        rect.setLocation(rect.x - viewRect.x, rect.y - viewRect.y);
+
+        int centerX = (viewRect.width - rect.width) / 2;
+        int centerY = (viewRect.height - rect.height) / 2;
+        if (rect.x < centerX) {
+            centerX = -centerX;
+        }
+        if (rect.y < centerY) {
+            centerY = -centerY;
+        }
+        rect.translate(centerX, centerY);
+        viewport.scrollRectToVisible(rect);
+    }
+
+    public static boolean isCellVisible(JTable table, int rowIndex, int vColIndex) {
+        if (!(table.getParent() instanceof JViewport)) {
+            return false;
+        }
+        JViewport viewport = (JViewport) table.getParent();
+        Rectangle rect = table.getCellRect(rowIndex, vColIndex, true);
+        Point pt = viewport.getViewPosition();
+        rect.setLocation(rect.x - pt.x, rect.y - pt.y);
+        return new Rectangle(viewport.getExtentSize()).contains(rect);
     }
 
     public void load(InputStream is) throws IOException {
@@ -669,19 +719,25 @@ public class DCPU
         f.setSize(800, 600);
         f.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 
-        JPanel p = new JPanel();
-        p.setLayout(new BorderLayout());
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, getEditor(), getMonitor());
+        //splitPane.setOneTouchExpandable(true);
+        splitPane.setResizeWeight(1.0);
+        //splitPane.setDividerLocation(150);
 
-        p.add(getEditor(), BorderLayout.CENTER);
-        p.add(getMonitor(), BorderLayout.SOUTH);
+        //JPanel p = new JPanel();
+        //p.setLayout(new BorderLayout());
 
-        f.getContentPane().add(p);
+        //p.add(getEditor(), BorderLayout.CENTER);
+        //p.add(getMonitor(), BorderLayout.SOUTH);
+
+        f.getContentPane().add(splitPane);
         f.setLocationByPlatform(true);
         f.setVisible(true);
+
+        SwingUtilities.invokeLater(() -> updateEditor(true));
     }
 
     private void scroll(JTable table, int row) {
-        table.getSelectionModel().setSelectionInterval(row, row);
         table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
     }
 
@@ -690,6 +746,28 @@ public class DCPU
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BorderLayout());
 
+        bottomPanel.add(getRegisterPanel(), BorderLayout.LINE_START);
+        bottomPanel.add(getStackPanel(), BorderLayout.LINE_END);
+
+        return bottomPanel;
+    }
+
+    private JComponent getStackPanel() {
+        stackTable.setFont(new Font("monospaced", Font.PLAIN, 10));
+        stackTable.setFillsViewportHeight(true);
+
+        JPanel stackPanel = new JPanel();
+        stackPanel.setLayout(new BorderLayout());
+        stackPanel.add(stackTable, BorderLayout.CENTER);
+
+        stackTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        JScrollPane scrollPane = new JScrollPane(stackTable);
+
+        return scrollPane;
+    }
+
+    private JPanel getRegisterPanel() {
         JPanel registerPanel = new JPanel();
         registerPanel.setLayout(new BorderLayout());
 
@@ -701,27 +779,32 @@ public class DCPU
 
         JPanel controlButtonPanel = new JPanel();
         controlButtonPanel.setLayout(new GridLayout(1, 4));
-        controlButtonPanel.add(createJButton("Over", e -> {
-        }));
-        controlButtonPanel.add(createJButton("Into", e -> {
-            if(!running) {
+        controlButtonPanel.add(createJButton("Step", e -> {
+            if (!running) {
                 tickle();
             }
         }));
         controlButtonPanel.add(createJButton("Run", e -> {
-            if (!running) {
+            if (running) {
+                running = false;
+                ((JButton) e.getSource()).setText("Run");
+            } else {
                 running = true;
+                ((JButton) e.getSource()).setText("Pause");
                 run();
             }
         }));
-        controlButtonPanel.add(createJButton("Pause", e -> {
-            running = false;
+        controlButtonPanel.add(createJButton("Clock", e -> {
+            cycleStart = cycles;
+            registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
         }));
+        controlButtonPanel.add(createJButton("PC", e -> {
+            scrollToCenter(editorTable, debugData.memToLineNum[pc], 0);
+        }));
+
         registerPanel.add(controlButtonPanel, BorderLayout.PAGE_START);
 
-        bottomPanel.add(registerPanel, BorderLayout.LINE_START);
-
-        return bottomPanel;
+        return registerPanel;
     }
 
     private JButton createJButton(String label, ActionListener listener) {
@@ -730,14 +813,20 @@ public class DCPU
         return button;
     }
 
-    private RegisterTableModel registerTableModel = new RegisterTableModel();
+private RegisterTableModel registerTableModel = new RegisterTableModel();
+    private StackTableModel stackTableModel = new StackTableModel();
     private JTable editorTable = new JTable(new MyTableModel());
+    private JTable stackTable = new JTable(stackTableModel);
+
 
     private JComponent getEditor() {
         editorTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         editorTable.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
         editorTable.setFillsViewportHeight(true);
-        editorTable.getColumnModel().getColumn(0).setPreferredWidth(100);
+        editorTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        editorTable.getColumnModel().getColumn(0).setMaxWidth(50);
+        editorTable.getColumnModel().getColumn(1).setPreferredWidth(160);
+        editorTable.getColumnModel().getColumn(1).setMaxWidth(250);
         editorTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 
         JScrollPane scrollPane = new JScrollPane(editorTable);
@@ -768,7 +857,7 @@ public class DCPU
                 } else if (rowIndex == 10) {
                     return "EX " + String.format("%04X", (int) ex);
                 } else if (rowIndex == 11) {
-                    return "" + String.format("%012d", cycles);
+                    return "" + String.format("%012d", cycles-cycleStart);
                 }
             } else {
                 if (rowIndex < 8) {
@@ -779,7 +868,35 @@ public class DCPU
                     return "[PC] " + String.format("%04X", (int) ram[(int) pc]);
                 } else if (rowIndex == 10) {
                     return "[EX] " + String.format("%04X", (int) ram[(int) ex]);
+                } else if (rowIndex == 11) {
+                    return (isSkipping ? "Skipping": "Executing");
                 }
+            }
+            return null;
+        }
+    }
+
+    class StackTableModel extends AbstractTableModel {
+
+        @Override
+        public int getRowCount() {
+            if(sp == 0) return 0;
+            return 65536 - (int) sp;
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 3;
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            if(columnIndex == 0) {
+                return String.format("%04X", (int) 65535 - rowIndex);
+            } else if(columnIndex == 1) {
+                return String.format("%04X", (int) ram[65535 - rowIndex]);
+            } else if(columnIndex == 2) {
+                return debugData.memToLabel[65535 - rowIndex];
             }
             return null;
         }
@@ -794,28 +911,36 @@ public class DCPU
 
         @Override
         public int getColumnCount() {
-            return 2;
+            return 3;
         }
 
-        public Class<String> getColumnClass(int columnIndex) {
-            return String.class;
+        public Class getColumnClass(int columnIndex) {
+            if(columnIndex >0) return String.class;
+            return Boolean.class;
         }
 
         public boolean isCellEditable(int row, int column) {
-            return false;
+
+            return column == 0;
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            if(columnIndex == 0) {
+            if(columnIndex == 1) {
                 String s = "";
                 for(Integer addr: debugData.lines.get(rowIndex).mem) {
-                    s = s + "" + String.format("%04X", addr) + " " + String.format("%04X", (int) ram[addr]) + "\n";
+                    if(s.length() > 0) s+= " ";
+                    s += String.format("[%04X]=%04X", addr, (int) ram[addr]);
+                    //if(s.length() > 0) s += "\n";
+                    //s = s + "" + String.format("%04X", addr) + " " + String.format("%04X", (int) ram[addr]);
                 }
                 return s;
-            } else {
+            } else if(columnIndex == 2) {
                 return debugData.lines.get(rowIndex).text;
+            } else if(columnIndex == 0) {
+                return false;
             }
+            return null;
         }
     }
 }
