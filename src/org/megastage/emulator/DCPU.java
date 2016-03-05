@@ -9,7 +9,6 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseListener;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +20,12 @@ import java.util.List;
  */
 public class DCPU
 {
-    public static DebugData debugData;
+    public static final int khz = 1000;
+
+    public DebugData debugData;
+    public boolean running = false;
+    private boolean[] breakPoints = new boolean[65536];
+
 
     public char[] ram = new char[65536];
     public char pc;
@@ -30,19 +34,19 @@ public class DCPU
     public char ia;
     public char[] registers = new char[8];
     public long cycles, cycleStart;
-    protected ArrayList<DCPUHardware> hardware = new ArrayList<DCPUHardware>();
+    public final ArrayList<DCPUHardware> hardware = new ArrayList<DCPUHardware>();
+    public final VirtualClock clock = new VirtualClock();
+    public final VirtualKeyboard kbd = new VirtualKeyboard();
+    public final VirtualFloppyDrive floppy = new VirtualFloppyDrive();
 
-    protected static volatile boolean stop = false;
-    protected static final int khz = 1000;
-    boolean isSkipping = false;
-    boolean isOnFire = false;
-    boolean queueingEnabled = false; //TODO: Verify implementation
-    char[] interrupts = new char[256];
-    int ip;
-    int iwp;
+    public boolean isSkipping = false;
+    public boolean isOnFire = false;
+    public boolean queueingEnabled = false; //TODO: Verify implementation
+    public char[] interrupts = new char[256];
+    public int ip;
+    public int iwp;
 
-    public int getAddrB(int type)
-    {
+    public int getAddrB(int type) {
         switch (type & 0xF8) {
             case 0x00:
                 return 0x10000 + (type & 0x7);
@@ -233,11 +237,7 @@ public class DCPU
             char opcode = ram[pc];
             int cmd = opcode & 0x1F;
             pc = (char)(pc + getInstructionLength(opcode));
-            if ((cmd >= 16) && (cmd <= 23))
-                isSkipping = true;
-            else {
-                isSkipping = false;
-            }
+            isSkipping = (cmd >= 16) && (cmd <= 23);
             return;
         }
 
@@ -488,16 +488,15 @@ public class DCPU
         }
     }
 
-    public void interrupt(char a)
-    {
+    public void interrupt(char a) {
         interrupts[iwp = iwp + 1 & 0xFF] = a;
         if (iwp == ip) isOnFire = true;
     }
 
     public void tickHardware() {
         synchronized (hardware) {
-            for (int i = 0; i < hardware.size(); i++) {
-                ((DCPUHardware)hardware.get(i)).tick60hz();
+            for (DCPUHardware aHardware : hardware) {
+                aHardware.tick60hz();
             }
         }
     }
@@ -526,58 +525,51 @@ public class DCPU
             @Override
             public void run() {
                 running = true;
-                executeRun();
+                int hz = 100 * khz;
+                int cyclesPerFrame = hz / 60 + 1;
+
+                long nsPerFrame = 16666666L;
+                long nextFrameTime = System.nanoTime();
+                long lastShownCycles = cycles;
+
+                while (running) {
+                    while (System.nanoTime() < nextFrameTime) {
+                        try {
+                            Thread.sleep(15);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    long cyclesFrameEnd = cycles + cyclesPerFrame;
+
+                    while (cycles < cyclesFrameEnd) {
+                        tick();
+                        if(breakPoints[pc]) {
+                            running = false;
+                            runButton.setText("Run");
+                            break;
+                        }
+                    }
+                    tickHardware();
+                    nextFrameTime += nsPerFrame;
+                    if(cycles > lastShownCycles + 10000) {
+                        registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
+                        lastShownCycles = cycles;
+                    }
+                }
+                SwingUtilities.invokeLater(() -> updateDebugger(true));
             }
         }).start();
     }
-
-    private boolean running = false;
-
-    private void executeRun() {
-        int hz = 100 * khz;
-        int cyclesPerFrame = hz / 60 + 1;
-
-        long nsPerFrame = 16666666L;
-        long nextFrameTime = System.nanoTime();
-
-        while (running) {
-            while (System.nanoTime() < nextFrameTime) {
-                try {
-                    Thread.sleep(15);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            long cyclesFrameEnd = cycles + cyclesPerFrame;
-
-            while (cycles < cyclesFrameEnd) {
-                tick();
-                if(breakPoints[pc]) {
-                    running = false;
-                    runButton.setText("Run");
-                    break;
-                }
-            }
-            tickHardware();
-            nextFrameTime += nsPerFrame;
-            if(cycles > lastShownCycles + 10000) {
-                registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
-                lastShownCycles = cycles;
-            }
-        }
-        SwingUtilities.invokeLater(() -> updateEditor(true));
-    }
-
-    long lastShownCycles = 0;
 
     private void tickle() {
         boolean isPcVisible = isCellVisible(editorTable, debugData.memToLineNum[pc], 0);
         tick();
         tickHardware();
-        updateEditor(isPcVisible);
+        updateDebugger(isPcVisible);
     }
 
-    private void updateEditor(boolean updatePc) {
+    private void updateDebugger(boolean updatePc) {
         registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 0, 11));
         stackTableModel.fireTableChanged(new TableModelEvent(stackTableModel));
 
@@ -610,6 +602,11 @@ public class DCPU
         viewport.scrollRectToVisible(rect);
     }
 
+    private void scroll(JTable table, int row) {
+        table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
+    }
+
+
     public static boolean isCellVisible(JTable table, int rowIndex, int vColIndex) {
         if (!(table.getParent() instanceof JViewport)) {
             return false;
@@ -621,7 +618,11 @@ public class DCPU
         return new Rectangle(viewport.getExtentSize()).contains(rect);
     }
 
-    public void load(InputStream is) throws IOException {
+    public void loadBinary(String filename) throws IOException {
+        File file = new File(filename).getAbsoluteFile();
+        InputStream is = new FileInputStream(file);
+        System.out.println("Loading bootrom: " + file.toString());
+
         int i = 0;
         try (DataInputStream dis = new DataInputStream(new BufferedInputStream(is))) {
             for (; i < ram.length; i++) {
@@ -634,50 +635,40 @@ public class DCPU
                 ram[i] = 0;
             }
         }
+        is.close();
+    }
+
+    public void loadDebugInfo(String filename) throws IOException {
+        debugData = DebugData.load(filename);
     }
 
     public static void main(String[] args) throws Exception {
-        final DCPU dcpu = new DCPU();
+        DCPU dcpu = new DCPU();
 
-        if(args.length > 0) {
-            File file = new File(args[0]).getAbsoluteFile();
-            InputStream is = new FileInputStream(file);
-            System.out.println("Loading bootrom: " + file.toString());
-            dcpu.load(is);
+        dcpu.loadBinary(args[0]);
+        dcpu.loadDebugInfo(args[0] + ".dbg");
+
+        dcpu.setup("floppy.bin");
+
+    }
+
+    private void setup(String floppyFileName) throws IOException {
+        clock.connectTo(this);
+        kbd.connectTo(this);
+        floppy.connectTo(this);
+
+        if(new File(floppyFileName).isFile()) {
+            InputStream is = new FileInputStream(new File(floppyFileName));
+            floppy.insert(new FloppyDisk(is));
             is.close();
-
-            debugData = DebugData.load(args[0] + ".dbg");
-
-        } else {
-            InputStream is = DCPU.class.getResourceAsStream("/admiral.bin");
-            System.out.println("Loading bootrom: " + DCPU.class.getResource("/admiral.bin").toString());
-            dcpu.load(is);
         }
-
-        final VirtualClock clock = new VirtualClock();
-        clock.connectTo(dcpu);
-
-        final VirtualKeyboard kbd = new VirtualKeyboard();
-        kbd.connectTo(dcpu);
-
-        final VirtualFloppyDrive floppy = new VirtualFloppyDrive();
-        floppy.connectTo(dcpu);
-
-        if(args.length > 1) {
-            InputStream is = new FileInputStream(new File(args[1]));
-            floppy.insert(new FloppyDisk(is));
-        } else {
-            InputStream is = DCPU.class.getResourceAsStream("/floppy.bin");
-            floppy.insert(new FloppyDisk(is));
-        }
-
 
         KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
         manager.addKeyEventDispatcher(new KeyEventDispatcher() {
             @Override
             public boolean dispatchKeyEvent(KeyEvent e) {
                 //System.out.println("e = " + e);
-                if(e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     System.exit(0);
                 }
                 if (e.getID() == KeyEvent.KEY_PRESSED) {
@@ -692,26 +683,26 @@ public class DCPU
         });
 
         final VirtualMonitor mon = new VirtualMonitor();
-        mon.connectTo(dcpu);
+        mon.connectTo(this);
 
         LEM1802Viewer view = new LEM1802Viewer();
         view.attach(mon);
 
-        JFrame f = new JFrame("Megastage DCPU Emulator");
-        f.setSize(640, 400);
+        JFrame f = new JFrame("Megastage DCPU Debugger");
+        f.setExtendedState(JFrame.MAXIMIZED_BOTH);
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        JPanel p = new JPanel();
-        p.setLayout(new BorderLayout());
-        p.add(view.canvas, BorderLayout.CENTER);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, createUpperPanel(view), createLowerPanel());
+        splitPane.setResizeWeight(1.0);
 
-        f.getContentPane().add(p);
+        f.getContentPane().add(splitPane);
+
         f.setVisible(true);
         f.createBufferStrategy(2);
 
-        dcpu.initDebugger();
+        SwingUtilities.invokeLater(() -> updateDebugger(true));
 
-        for (DCPUHardware hw : dcpu.hardware) {
+        for (DCPUHardware hw : hardware) {
             hw.powerOn();
         }
 
@@ -720,66 +711,67 @@ public class DCPU
         view.canvas.setup();
     }
 
-    private void initDebugger() {
-        JFrame f = new JFrame("Megastage DCPU Debugger");
-        f.setSize(800, 600);
-        f.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, getEditor(), getMonitor());
-        //splitPane.setOneTouchExpandable(true);
-        splitPane.setResizeWeight(1.0);
-        //splitPane.setDividerLocation(150);
-
-        //JPanel p = new JPanel();
-        //p.setLayout(new BorderLayout());
-
-        //p.add(getEditor(), BorderLayout.CENTER);
-        //p.add(getMonitor(), BorderLayout.SOUTH);
-
-        f.getContentPane().add(splitPane);
-        f.setLocationByPlatform(true);
-        f.setVisible(true);
-
-        SwingUtilities.invokeLater(() -> updateEditor(true));
+    private JComponent createLemPanel(LEM1802Viewer view) {
+        JPanel p = new JPanel();
+        p.setLayout(new BorderLayout());
+        p.add(view.canvas, BorderLayout.CENTER);
+        return p;
     }
 
-    private void scroll(JTable table, int row) {
-        table.scrollRectToVisible(new Rectangle(table.getCellRect(row, 0, true)));
+    private JComponent createUpperPanel(LEM1802Viewer view) {
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, createLemPanel(view), getEditor());
+        return splitPane;
     }
 
-
-    private JComponent getMonitor() {
+    private JComponent createLowerPanel() {
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BorderLayout());
 
-        bottomPanel.add(getRegisterPanel(), BorderLayout.LINE_START);
-        bottomPanel.add(getStackPanel(), BorderLayout.LINE_END);
+        bottomPanel.add(createRegisterPanel(), BorderLayout.LINE_START);
+        bottomPanel.add(createWatchPanel(), BorderLayout.CENTER);
+        bottomPanel.add(createStackPanel(), BorderLayout.LINE_END);
 
         return bottomPanel;
     }
 
-    public class MyRenderer extends DefaultTableCellRenderer {
+    private JComponent createWatchPanel() {
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BorderLayout());
 
+        JPanel ctrlPanel = new JPanel();
+        ctrlPanel.setLayout(new GridLayout(1, 1));
+
+        ctrlPanel.add(createJButton("New", e -> {
+            watchTableModel.addRow();
+        }));
+
+        JTable watchTable = new JTable(watchTableModel);
+        watchTable.setFont(new Font("monospaced", Font.PLAIN, 10));
+        watchTable.setFillsViewportHeight(true);
+        // watchTable.setRowSelectionAllowed(false);
+        watchTable.setDefaultRenderer(Object.class, new NoFocusBorderRenderer());
+        watchTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        JScrollPane scrollPane = new JScrollPane(watchTable);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        return mainPanel;
+    }
+
+    public class NoFocusBorderRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             setBorder(noFocusBorder);
             return this;
         }
-
     }
 
-    private JComponent getStackPanel() {
+    private JComponent createStackPanel() {
         stackTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         stackTable.setFillsViewportHeight(true);
         stackTable.setRowSelectionAllowed(false);
-        stackTable.setDefaultRenderer(Object.class, new MyRenderer());
-
-
-
-        JPanel stackPanel = new JPanel();
-        stackPanel.setLayout(new BorderLayout());
-        stackPanel.add(stackTable, BorderLayout.CENTER);
+        stackTable.setDefaultRenderer(Object.class, new NoFocusBorderRenderer());
 
         stackTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 
@@ -788,7 +780,7 @@ public class DCPU
         return scrollPane;
     }
 
-    private JPanel getRegisterPanel() {
+    private JPanel createRegisterPanel() {
         JPanel registerPanel = new JPanel();
         registerPanel.setLayout(new BorderLayout());
 
@@ -796,15 +788,13 @@ public class DCPU
         registerTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         registerTable.setFillsViewportHeight(true);
         registerTable.setRowSelectionAllowed(false);
-        registerTable.setDefaultRenderer(Object.class, new MyRenderer());
+        registerTable.setDefaultRenderer(Object.class, new NoFocusBorderRenderer());
 
         registerPanel.add(registerTable, BorderLayout.CENTER);
         registerPanel.add(getControlPanel(), BorderLayout.PAGE_START);
 
         return registerPanel;
     }
-
-    JButton runButton;
 
     private JPanel getControlPanel() {
         JPanel controlButtonPanel = new JPanel();
@@ -841,8 +831,12 @@ public class DCPU
         return button;
     }
 
+    private JButton runButton;
+
     private RegisterTableModel registerTableModel = new RegisterTableModel();
     private StackTableModel stackTableModel = new StackTableModel();
+    private WatchTableModel watchTableModel = new WatchTableModel();
+
     private JTable editorTable = new JTable(new EditorTableModel()) {
         public void changeSelection(int row, int column, boolean toggle, boolean extend) {
             System.out.println("DCPU.changeSelection");
@@ -877,16 +871,6 @@ public class DCPU
         editorTable.getColumnModel().getColumn(1).setPreferredWidth(160);
         editorTable.getColumnModel().getColumn(1).setMaxWidth(250);
         editorTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-
-/*
-        MouseListener[] listeners = editorTable.getListeners(MouseListener.class);
-        for (MouseListener listener : listeners) {
-            System.out.println("listener = " + listener.toString());
-            System.out.println(" listener.getClass().getName() = " + listener.getClass().getName());
-            editorTable.removeMouseListener(listener);
-        }
-*/
-
 
         JScrollPane scrollPane = new JScrollPane(editorTable);
         return scrollPane;
@@ -955,6 +939,45 @@ public class DCPU
         }
     }
 
+    class WatchTableModel extends AbstractTableModel {
+        ArrayList<Watch> watches = new ArrayList<>();
+
+        @Override
+        public int getRowCount() {
+            return watches.size();
+        }
+
+        private final String[] cols = new String[] {"Expr", "Value"};
+        public String getColumnName(int column) {
+            return cols[column];
+        }
+
+        @Override
+        public int getColumnCount() {
+            return cols.length;
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            if(columnIndex == 0) {
+                return String.format("%04X", (int) 65535 - rowIndex);
+            } else if(columnIndex == 1) {
+                return String.format("%04X", (int) ram[65535 - rowIndex]);
+            } else if(columnIndex == 2) {
+                return debugData.memToLabel[65535 - rowIndex];
+            }
+            return null;
+        }
+
+        public void addRow() {
+            watches.add(new Watch());
+        }
+
+        class Watch {
+
+        }
+    }
+
     class StackTableModel extends AbstractTableModel {
 
         @Override
@@ -985,8 +1008,6 @@ public class DCPU
             return null;
         }
     }
-
-    private boolean[] breakPoints = new boolean[65536];
 
     class EditorTableModel extends AbstractTableModel {
 
