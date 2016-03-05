@@ -3,11 +3,13 @@ package org.megastage.emulator;
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseListener;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +33,7 @@ public class DCPU
     protected ArrayList<DCPUHardware> hardware = new ArrayList<DCPUHardware>();
 
     protected static volatile boolean stop = false;
-    protected static final int khz = 100;
+    protected static final int khz = 1000;
     boolean isSkipping = false;
     boolean isOnFire = false;
     boolean queueingEnabled = false; //TODO: Verify implementation
@@ -541,16 +543,20 @@ public class DCPU
         while (running) {
             while (System.nanoTime() < nextFrameTime) {
                 try {
-                    Thread.sleep(1L);
+                    Thread.sleep(15);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-
             long cyclesFrameEnd = cycles + cyclesPerFrame;
 
             while (cycles < cyclesFrameEnd) {
                 tick();
+                if(breakPoints[pc]) {
+                    running = false;
+                    runButton.setText("Run");
+                    break;
+                }
             }
             tickHardware();
             nextFrameTime += nsPerFrame;
@@ -559,7 +565,7 @@ public class DCPU
                 lastShownCycles = cycles;
             }
         }
-        SwingUtilities.invokeLater( () -> updateEditor(true));
+        SwingUtilities.invokeLater(() -> updateEditor(true));
     }
 
     long lastShownCycles = 0;
@@ -752,9 +758,24 @@ public class DCPU
         return bottomPanel;
     }
 
+    public class MyRenderer extends DefaultTableCellRenderer {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            setBorder(noFocusBorder);
+            return this;
+        }
+
+    }
+
     private JComponent getStackPanel() {
         stackTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         stackTable.setFillsViewportHeight(true);
+        stackTable.setRowSelectionAllowed(false);
+        stackTable.setDefaultRenderer(Object.class, new MyRenderer());
+
+
 
         JPanel stackPanel = new JPanel();
         stackPanel.setLayout(new BorderLayout());
@@ -774,9 +795,18 @@ public class DCPU
         JTable registerTable = new JTable(registerTableModel);
         registerTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         registerTable.setFillsViewportHeight(true);
+        registerTable.setRowSelectionAllowed(false);
+        registerTable.setDefaultRenderer(Object.class, new MyRenderer());
 
         registerPanel.add(registerTable, BorderLayout.CENTER);
+        registerPanel.add(getControlPanel(), BorderLayout.PAGE_START);
 
+        return registerPanel;
+    }
+
+    JButton runButton;
+
+    private JPanel getControlPanel() {
         JPanel controlButtonPanel = new JPanel();
         controlButtonPanel.setLayout(new GridLayout(1, 4));
         controlButtonPanel.add(createJButton("Step", e -> {
@@ -784,7 +814,7 @@ public class DCPU
                 tickle();
             }
         }));
-        controlButtonPanel.add(createJButton("Run", e -> {
+        runButton = createJButton("Run", e -> {
             if (running) {
                 running = false;
                 ((JButton) e.getSource()).setText("Run");
@@ -793,18 +823,16 @@ public class DCPU
                 ((JButton) e.getSource()).setText("Pause");
                 run();
             }
-        }));
+        });
+        controlButtonPanel.add(runButton);
         controlButtonPanel.add(createJButton("Clock", e -> {
             cycleStart = cycles;
             registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
         }));
-        controlButtonPanel.add(createJButton("PC", e -> {
+        controlButtonPanel.add(createJButton("Focus", e -> {
             scrollToCenter(editorTable, debugData.memToLineNum[pc], 0);
         }));
-
-        registerPanel.add(controlButtonPanel, BorderLayout.PAGE_START);
-
-        return registerPanel;
+        return controlButtonPanel;
     }
 
     private JButton createJButton(String label, ActionListener listener) {
@@ -813,9 +841,30 @@ public class DCPU
         return button;
     }
 
-private RegisterTableModel registerTableModel = new RegisterTableModel();
+    private RegisterTableModel registerTableModel = new RegisterTableModel();
     private StackTableModel stackTableModel = new StackTableModel();
-    private JTable editorTable = new JTable(new MyTableModel());
+    private JTable editorTable = new JTable(new EditorTableModel()) {
+        public void changeSelection(int row, int column, boolean toggle, boolean extend) {
+            System.out.println("DCPU.changeSelection");
+        }
+        @Override
+        public TableCellRenderer getCellRenderer(int row, int column) {
+            if(getValueAt(row, column) instanceof Boolean) {
+                return super.getDefaultRenderer(Boolean.class);
+            } else {
+                return super.getCellRenderer(row, column);
+            }
+        }
+
+        @Override
+        public TableCellEditor getCellEditor(int row, int column) {
+            if(getValueAt(row, column) instanceof Boolean) {
+                return super.getDefaultEditor(Boolean.class);
+            } else {
+                return super.getCellEditor(row, column);
+            }
+        }
+    };
     private JTable stackTable = new JTable(stackTableModel);
 
 
@@ -829,48 +878,78 @@ private RegisterTableModel registerTableModel = new RegisterTableModel();
         editorTable.getColumnModel().getColumn(1).setMaxWidth(250);
         editorTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 
+/*
+        MouseListener[] listeners = editorTable.getListeners(MouseListener.class);
+        for (MouseListener listener : listeners) {
+            System.out.println("listener = " + listener.toString());
+            System.out.println(" listener.getClass().getName() = " + listener.getClass().getName());
+            editorTable.removeMouseListener(listener);
+        }
+*/
+
+
         JScrollPane scrollPane = new JScrollPane(editorTable);
         return scrollPane;
     }
 
     class RegisterTableModel extends AbstractTableModel {
-
         @Override
         public int getRowCount() {
             return 12;
         }
 
+        private final String[] cols = new String[] {"Name", "Value", "[Value]"};
+        public String getColumnName(int column) {
+            return cols[column];
+        }
+
         @Override
         public int getColumnCount() {
-            return 2;
+            return cols.length;
         }
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            if(columnIndex == 0) {
-                if (rowIndex < 8) {
-                    return " " + "ABCXYZIJ".charAt(rowIndex) + " " + String.format("%04X", (int) registers[rowIndex]);
-                } else if (rowIndex == 8) {
-                    return "SP " + String.format("%04X", (int) sp);
-                } else if (rowIndex == 9) {
-                    return "PC " + String.format("%04X", (int) pc);
-                } else if (rowIndex == 10) {
-                    return "EX " + String.format("%04X", (int) ex);
-                } else if (rowIndex == 11) {
-                    return "" + String.format("%012d", cycles-cycleStart);
-                }
-            } else {
-                if (rowIndex < 8) {
-                    return " [" + "ABCXYZIJ".charAt(rowIndex) + "] " + String.format("%04X", (int) ram[(int) registers[rowIndex]]);
-                } else if (rowIndex == 8) {
-                    return "[SP] " + String.format("%04X", (int) ram[(int) sp]);
-                } else if (rowIndex == 9) {
-                    return "[PC] " + String.format("%04X", (int) ram[(int) pc]);
-                } else if (rowIndex == 10) {
-                    return "[EX] " + String.format("%04X", (int) ram[(int) ex]);
-                } else if (rowIndex == 11) {
-                    return (isSkipping ? "Skipping": "Executing");
-                }
+            switch(columnIndex) {
+                case 0:
+                    if (rowIndex < 8) {
+                        return "ABCXYZIJ".substring(rowIndex, rowIndex+1);
+                    } else if (rowIndex == 8) {
+                        return "SP";
+                    } else if (rowIndex == 9) {
+                        return "PC";
+                    } else if (rowIndex == 10) {
+                        return "EX";
+                    } else if (rowIndex == 11) {
+                        return String.format("%012d", cycles);
+                    }
+                    break;
+                case 1:
+                    if (rowIndex < 8) {
+                        return String.format("%04X", (int) registers[rowIndex]);
+                    } else if (rowIndex == 8) {
+                        return String.format("%04X", (int) sp);
+                    } else if (rowIndex == 9) {
+                        return String.format("%04X", (int) pc);
+                    } else if (rowIndex == 10) {
+                        return String.format("%04X", (int) ex);
+                    } else if (rowIndex == 11) {
+                        return String.format("%012d", cycles-cycleStart);
+                    }
+                    break;
+                case 2:
+                    if (rowIndex < 8) {
+                        return String.format("[%04X]", (int) ram[(int) registers[rowIndex]]);
+                    } else if (rowIndex == 8) {
+                        return String.format("[%04X]", (int) ram[(int) sp]);
+                    } else if (rowIndex == 9) {
+                        return String.format("[%04X]", (int) ram[(int) pc]);
+                    } else if (rowIndex == 10) {
+                        return String.format("[%04X]", (int) ram[(int) ex]);
+                    } else if (rowIndex == 11) {
+                        return isSkipping ? "Skipping": "Executing";
+                    }
+                    break;
             }
             return null;
         }
@@ -882,6 +961,11 @@ private RegisterTableModel registerTableModel = new RegisterTableModel();
         public int getRowCount() {
             if(sp == 0) return 0;
             return 65536 - (int) sp;
+        }
+
+        private final String[] cols = new String[] {"Address", "Value", "Label"};
+        public String getColumnName(int column) {
+            return cols[column];
         }
 
         @Override
@@ -902,7 +986,9 @@ private RegisterTableModel registerTableModel = new RegisterTableModel();
         }
     }
 
-    class MyTableModel extends AbstractTableModel {
+    private boolean[] breakPoints = new boolean[65536];
+
+    class EditorTableModel extends AbstractTableModel {
 
         @Override
         public int getRowCount() {
@@ -914,14 +1000,29 @@ private RegisterTableModel registerTableModel = new RegisterTableModel();
             return 3;
         }
 
+        private final String[] cols = new String[] {"Break", "Memory", "Source"};
+        public String getColumnName(int column) {
+            return cols[column];
+        }
+/*
         public Class getColumnClass(int columnIndex) {
             if(columnIndex >0) return String.class;
             return Boolean.class;
         }
-
+*/
         public boolean isCellEditable(int row, int column) {
-
             return column == 0;
+        }
+
+        @Override
+        public void setValueAt(Object aValue, int row, int column) {
+            if (aValue instanceof Boolean && column == 0) {
+                if(!debugData.lines.get(row).mem.isEmpty()) {
+                    int address = debugData.lines.get(row).mem.get(0);
+                    breakPoints[address] = (boolean) aValue;
+                    fireTableCellUpdated(row, column);
+                }
+            }
         }
 
         @Override
@@ -938,7 +1039,12 @@ private RegisterTableModel registerTableModel = new RegisterTableModel();
             } else if(columnIndex == 2) {
                 return debugData.lines.get(rowIndex).text;
             } else if(columnIndex == 0) {
-                return false;
+                if(!debugData.lines.get(rowIndex).mem.isEmpty()) {
+                    int address = debugData.lines.get(rowIndex).mem.get(0);
+                    return breakPoints[address];
+                } else {
+                    return null;
+                }
             }
             return null;
         }
