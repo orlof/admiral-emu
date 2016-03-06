@@ -10,6 +10,7 @@ import java.util.List;
 public class DebugData {
     public HashMap<String, String> defines = new HashMap<>();
     public HashMap<String, String> labels = new HashMap<>();
+    public HashMap<String, String> constants = new HashMap<>();
     public List<LineData> lines = new ArrayList<>(65536);
     public int[] memToLineNum = new int[65536];
     public String[] memToLabel = new String[65536];
@@ -29,6 +30,9 @@ public class DebugData {
     private void init(BufferedReader br) throws IOException {
         defines = initMap(br);
         labels = initMap(br);
+
+        constants.putAll(labels);
+        constants.putAll(defines);
 
         for(String label: labels.keySet()) {
             String value = labels.get(label);

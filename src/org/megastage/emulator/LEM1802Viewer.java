@@ -17,9 +17,9 @@ public class LEM1802Viewer {
     GraphicsConfiguration config;
 
     public LEM1802Viewer() {
-        canvas.setPreferredSize(new Dimension(144, 112));
+        canvas.setPreferredSize(new Dimension(4*144, 4*112));
         canvas.setMinimumSize(new Dimension(144, 112));
-        canvas.setMaximumSize(new Dimension(144, 112));
+        //canvas.setMaximumSize(new Dimension(144, 112));
         canvas.setFocusable(true);
         canvas.requestFocus();
 
@@ -115,7 +115,7 @@ public class LEM1802Viewer {
                     }
                     strategy.show();
                 }
-                Toolkit.getDefaultToolkit().sync();
+                //Toolkit.getDefaultToolkit().sync();
             } catch (IllegalStateException e) {
                 //TODO Make this not happen on application close? Meh.
             }

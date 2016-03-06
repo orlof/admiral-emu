@@ -7,6 +7,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.*;
@@ -570,14 +571,19 @@ public class DCPU
     }
 
     private void updateDebugger(boolean updatePc) {
-        registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 0, 11));
+        //registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 0, 11));
+        registerTableModel.fireTableDataChanged();
         stackTableModel.fireTableChanged(new TableModelEvent(stackTableModel));
 
-        editorTable.setRowSelectionInterval(debugData.memToLineNum[pc], debugData.memToLineNum[pc]);
-
+        editorTable.clearSelection();
         if(updatePc) {
             scrollToCenter(editorTable, debugData.memToLineNum[pc] + 1, 0);
         }
+        editorTable.setRowSelectionInterval(debugData.memToLineNum[pc], debugData.memToLineNum[pc]);
+
+        watchTableModel.evaluateExpressions();
+        watchTableModel.fireTableDataChanged();
+
         if(sp > 0) scroll(stackTable, 65535 - (int) sp);
     }
 
@@ -668,15 +674,17 @@ public class DCPU
             @Override
             public boolean dispatchKeyEvent(KeyEvent e) {
                 //System.out.println("e = " + e);
-                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    System.exit(0);
-                }
-                if (e.getID() == KeyEvent.KEY_PRESSED) {
-                    kbd.keyPressed(e.getKeyCode(), e.getKeyChar());
-                } else if (e.getID() == KeyEvent.KEY_RELEASED) {
-                    kbd.keyReleased(e.getKeyCode(), e.getKeyChar());
-                } else if (e.getID() == KeyEvent.KEY_TYPED) {
-                    // kbd.keyTyped(e.getKeyCode(), e.getKeyChar());
+                if(view.canvas.isFocusOwner()) {
+                    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                        System.exit(0);
+                    }
+                    if (e.getID() == KeyEvent.KEY_PRESSED) {
+                        kbd.keyPressed(e.getKeyCode(), e.getKeyChar());
+                    } else if (e.getID() == KeyEvent.KEY_RELEASED) {
+                        kbd.keyReleased(e.getKeyCode(), e.getKeyChar());
+                    } else if (e.getID() == KeyEvent.KEY_TYPED) {
+                        // kbd.keyTyped(e.getKeyCode(), e.getKeyChar());
+                    }
                 }
                 return false;
             }
@@ -685,7 +693,7 @@ public class DCPU
         final VirtualMonitor mon = new VirtualMonitor();
         mon.connectTo(this);
 
-        LEM1802Viewer view = new LEM1802Viewer();
+        view = new LEM1802Viewer();
         view.attach(mon);
 
         JFrame f = new JFrame("Megastage DCPU Debugger");
@@ -700,26 +708,25 @@ public class DCPU
         f.setVisible(true);
         f.createBufferStrategy(2);
 
+        view.canvas.setup();
+
         SwingUtilities.invokeLater(() -> updateDebugger(true));
 
         for (DCPUHardware hw : hardware) {
             hw.powerOn();
         }
-
-        // dcpu.run();
-
-        view.canvas.setup();
     }
 
     private JComponent createLemPanel(LEM1802Viewer view) {
         JPanel p = new JPanel();
         p.setLayout(new BorderLayout());
-        p.add(view.canvas, BorderLayout.CENTER);
+        p.add(view.canvas, BorderLayout.PAGE_START);
         return p;
     }
 
     private JComponent createUpperPanel(LEM1802Viewer view) {
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, createLemPanel(view), getEditor());
+        splitPane.setDividerLocation(800);
         return splitPane;
     }
 
@@ -739,18 +746,27 @@ public class DCPU
         mainPanel.setLayout(new BorderLayout());
 
         JPanel ctrlPanel = new JPanel();
-        ctrlPanel.setLayout(new GridLayout(1, 1));
+        ctrlPanel.setLayout(new GridLayout(1, 2));
 
         ctrlPanel.add(createJButton("New", e -> {
             watchTableModel.addRow();
+            watchTableModel.fireTableChanged(new TableModelEvent(watchTableModel));
         }));
+        ctrlPanel.add(createJButton("Del", e -> {
+            watchTableModel.delRow();
+            watchTableModel.fireTableChanged(new TableModelEvent(watchTableModel));
+        }));
+        mainPanel.add(ctrlPanel, BorderLayout.PAGE_END);
 
-        JTable watchTable = new JTable(watchTableModel);
         watchTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         watchTable.setFillsViewportHeight(true);
         // watchTable.setRowSelectionAllowed(false);
         watchTable.setDefaultRenderer(Object.class, new NoFocusBorderRenderer());
-        watchTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        editorTable.getColumnModel().getColumn(0).setPreferredWidth(200);
+        //editorTable.getColumnModel().getColumn(0).setMaxWidth(50);
+        editorTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        editorTable.getColumnModel().getColumn(1).setMaxWidth(100);
+        watchTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
         JScrollPane scrollPane = new JScrollPane(watchTable);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
@@ -804,24 +820,33 @@ public class DCPU
                 tickle();
             }
         }));
-        runButton = createJButton("Run", e -> {
-            if (running) {
-                running = false;
-                ((JButton) e.getSource()).setText("Run");
-            } else {
-                running = true;
-                ((JButton) e.getSource()).setText("Pause");
-                run();
+
+        runButton = new JToggleButton("Run");
+        runButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JToggleButton source = (JToggleButton) e.getSource();
+                if (source.isSelected()) {
+                    source.setText("Pause");
+                    running = true;
+                    run();
+                } else {
+                    source.setText("Run");
+                    running = false;
+                }
             }
         });
         controlButtonPanel.add(runButton);
+
+        controlButtonPanel.add(createJButton("Focus", e -> {
+            scrollToCenter(editorTable, debugData.memToLineNum[pc], 0);
+        }));
+
         controlButtonPanel.add(createJButton("Clock", e -> {
             cycleStart = cycles;
             registerTableModel.fireTableChanged(new TableModelEvent(registerTableModel, 11));
         }));
-        controlButtonPanel.add(createJButton("Focus", e -> {
-            scrollToCenter(editorTable, debugData.memToLineNum[pc], 0);
-        }));
+
         return controlButtonPanel;
     }
 
@@ -831,15 +856,22 @@ public class DCPU
         return button;
     }
 
-    private JButton runButton;
+    private LEM1802Viewer view;
+    private JToggleButton runButton;
 
     private RegisterTableModel registerTableModel = new RegisterTableModel();
     private StackTableModel stackTableModel = new StackTableModel();
     private WatchTableModel watchTableModel = new WatchTableModel();
 
+    private JTable watchTable = new JTable(watchTableModel) {
+        public void changeSelection(int rowIndex, int columnIndex, boolean toggle, boolean extend) {
+            //Always toggle on single selection
+            super.changeSelection(rowIndex, columnIndex, !extend, extend);
+        }
+    };
+
     private JTable editorTable = new JTable(new EditorTableModel()) {
         public void changeSelection(int row, int column, boolean toggle, boolean extend) {
-            System.out.println("DCPU.changeSelection");
         }
         @Override
         public TableCellRenderer getCellRenderer(int row, int column) {
@@ -866,9 +898,9 @@ public class DCPU
         editorTable.setFont(new Font("monospaced", Font.PLAIN, 10));
         editorTable.setDefaultRenderer(String.class, new MultiLineTableCellRenderer());
         editorTable.setFillsViewportHeight(true);
-        editorTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        editorTable.getColumnModel().getColumn(0).setMinWidth(50);
         editorTable.getColumnModel().getColumn(0).setMaxWidth(50);
-        editorTable.getColumnModel().getColumn(1).setPreferredWidth(160);
+        editorTable.getColumnModel().getColumn(1).setMinWidth(160);
         editorTable.getColumnModel().getColumn(1).setMaxWidth(250);
         editorTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 
@@ -947,7 +979,7 @@ public class DCPU
             return watches.size();
         }
 
-        private final String[] cols = new String[] {"Expr", "Value"};
+        private final String[] cols = new String[] {"Expr", "Decimal", "Hex"};
         public String getColumnName(int column) {
             return cols[column];
         }
@@ -960,21 +992,69 @@ public class DCPU
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             if(columnIndex == 0) {
-                return String.format("%04X", (int) 65535 - rowIndex);
+                return watches.get(rowIndex).text;
             } else if(columnIndex == 1) {
-                return String.format("%04X", (int) ram[65535 - rowIndex]);
+                return watches.get(rowIndex).val;
             } else if(columnIndex == 2) {
-                return debugData.memToLabel[65535 - rowIndex];
+                return String.format("%04X", watches.get(rowIndex).val);
             }
             return null;
         }
 
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return String.class;
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return columnIndex == 0;
+        }
+
+        @Override
+        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+            Watch w = watches.get(rowIndex);
+            w.text = (String) aValue;
+            w.expr = new Expr(w.text, DCPU.this);
+            w.val = w.expr.eval();
+        }
+
+        public void evaluateExpressions() {
+            for(Watch w: watches) {
+                w.eval();
+            }
+            fireTableDataChanged();
+        }
+
         public void addRow() {
-            watches.add(new Watch());
+            int original = watchTable.getSelectedRow();
+            if(original == -1 ) {
+                watches.add(new Watch());
+            } else {
+                Watch other = watches.get(original);
+                Watch w = new Watch();
+                w.text = other.text;
+                w.expr = other.expr;
+                w.val = other.val;
+                watches.add(w);
+            }
+        }
+
+        public void delRow() {
+            int original = watchTable.getSelectedRow();
+            if(original != -1 ) {
+                watches.remove(original);
+            }
         }
 
         class Watch {
+            String text;
+            Expr expr = new Expr("", DCPU.this);
+            int val;
 
+            void eval() {
+                val = expr.eval();
+            }
         }
     }
 
