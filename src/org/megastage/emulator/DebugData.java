@@ -3,6 +3,7 @@ package org.megastage.emulator;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,29 @@ public class DebugData {
         br.close();
 
         return me;
+    }
+
+    public static DebugData fromRam(char[] ram) throws IOException {
+        DebugData me = new DebugData();
+        String src = new Disassembler(ram).disassemble();
+        BufferedReader br = new BufferedReader(new StringReader(src));
+
+        me.init2(br);
+        br.close();
+
+        return me;
+    }
+
+    private void init2(BufferedReader br) throws IOException {
+        String filename = br.readLine();
+        while(filename != null) {
+            LineData ld = new LineData(filename, br);
+            for(int addr: ld.mem) {
+                memToLineNum[addr] = lines.size();
+            }
+            lines.add(ld);
+            filename = br.readLine();
+        }
     }
 
     private void init(BufferedReader br) throws IOException {
@@ -84,6 +108,11 @@ public class DebugData {
         public String text;
         public List<Integer> mem;
 
+        public LineData(char[] ram, int addr) {
+            filename = "";
+
+        }
+
         public LineData(String filename, BufferedReader br) throws IOException {
             this.filename = filename;
             lineNum = Integer.parseInt(br.readLine()) + 1;
@@ -92,7 +121,9 @@ public class DebugData {
 
             mem = new ArrayList<>(len);
             for(int i=0; i < len; i++) {
-                int addr = Integer.parseInt(br.readLine(), 16);
+                String v = br.readLine();
+                System.out.println(v);
+                int addr = Integer.parseInt(v, 16);
                 if(addr == curAddr) {
                     curAddr++;
                     mem.add(addr);
@@ -101,6 +132,7 @@ public class DebugData {
             }
 
             text = br.readLine();
+            System.out.println(text);
         }
     }
 }

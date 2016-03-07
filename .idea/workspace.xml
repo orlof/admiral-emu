@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c6601722-15d6-404b-ab6c-d8fbb33bcad3" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/org/megastage/emulator/Expr.java" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/org/megastage/emulator/Disassembler.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/org/megastage/emulator/DCPU.java" afterPath="$PROJECT_DIR$/src/org/megastage/emulator/DCPU.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java" afterPath="$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/org/megastage/emulator/LEM1802Viewer.java" afterPath="$PROJECT_DIR$/src/org/megastage/emulator/LEM1802Viewer.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="admiral-emu.iws" />
@@ -63,19 +62,37 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="DCPU.java" pinned="false" current-in-tab="true">
+      <file leaf-file-name="DCPU.java" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/DCPU.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.681736">
-              <caret line="883" column="0" selection-start-line="883" selection-start-column="0" selection-end-line="883" selection-end-column="0" />
+            <state vertical-scroll-proportion="0.0">
+              <caret line="649" column="36" selection-start-line="649" selection-start-column="36" selection-end-line="649" selection-end-column="36" />
               <folding>
                 <element signature="e#1015#1029#0" expanded="true" />
-                <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-                <element signature="method#get#0;class#DCPU#0" expanded="false" />
+                <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+                <element signature="method#skip#0;class#DCPU#0" expanded="false" />
                 <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-                <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-                <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Disassembler.java" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/Disassembler.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.24969697">
+              <caret line="158" column="38" selection-start-line="158" selection-start-column="38" selection-end-line="158" selection-end-column="38" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="admiral.bin.dbg2" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/admiral.bin.dbg2">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0">
+              <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -96,7 +113,7 @@
         <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java">
           <provider selected="true" editor-type-id="text-editor">
             <state vertical-scroll-proportion="0.0">
-              <caret line="36" column="0" selection-start-line="36" selection-start-column="0" selection-end-line="36" selection-end-column="0" />
+              <caret line="134" column="35" selection-start-line="134" selection-start-column="35" selection-end-line="134" selection-end-column="35" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -143,9 +160,10 @@
         <option value="$PROJECT_DIR$/src/org/megastage/emulator/VirtualFloppyDrive.java" />
         <option value="$PROJECT_DIR$/admiral.bin.dbg" />
         <option value="$PROJECT_DIR$/src/org/megastage/emulator/LEM1802Viewer.java" />
-        <option value="$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java" />
         <option value="$PROJECT_DIR$/src/org/megastage/emulator/Expr.java" />
         <option value="$PROJECT_DIR$/src/org/megastage/emulator/DCPU.java" />
+        <option value="$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java" />
+        <option value="$PROJECT_DIR$/src/org/megastage/emulator/Disassembler.java" />
       </list>
     </option>
   </component>
@@ -441,7 +459,7 @@
       <window_info id="Designer" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32942554" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24080883" sideWeight="0.67108166" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3985932" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4384525" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32992035" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3317702" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -450,7 +468,7 @@
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="true" content_ui="tabs" />
       <window_info id="Application Servers" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.24236111" sideWeight="0.5630531" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.31887457" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.31887457" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="UI Designer" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="IDEtalk Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
@@ -480,10 +498,18 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/org/megastage/emulator/Disassembler.java</url>
+          <line>150</line>
+          <properties />
+          <option name="timeStamp" value="16" />
+        </line-breakpoint>
+      </breakpoints>
       <breakpoints-dialog>
         <breakpoints-dialog />
       </breakpoints-dialog>
-      <option name="time" value="15" />
+      <option name="time" value="17" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -498,11 +524,9 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#1015#1029#0" expanded="true" />
-            <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-            <element signature="method#get#0;class#DCPU#0" expanded="false" />
+            <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+            <element signature="method#skip#0;class#DCPU#0" expanded="false" />
             <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-            <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-            <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -531,11 +555,9 @@
           <caret line="677" column="0" selection-start-line="677" selection-start-column="0" selection-end-line="677" selection-end-column="0" />
           <folding>
             <element signature="e#1015#1029#0" expanded="true" />
-            <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-            <element signature="method#get#0;class#DCPU#0" expanded="false" />
+            <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+            <element signature="method#skip#0;class#DCPU#0" expanded="false" />
             <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-            <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-            <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -556,11 +578,9 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#1015#1029#0" expanded="true" />
-            <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-            <element signature="method#get#0;class#DCPU#0" expanded="false" />
+            <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+            <element signature="method#skip#0;class#DCPU#0" expanded="false" />
             <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-            <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-            <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -581,11 +601,9 @@
           <caret line="570" column="0" selection-start-line="570" selection-start-column="0" selection-end-line="570" selection-end-column="0" />
           <folding>
             <element signature="e#1015#1029#0" expanded="true" />
-            <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-            <element signature="method#get#0;class#DCPU#0" expanded="false" />
+            <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+            <element signature="method#skip#0;class#DCPU#0" expanded="false" />
             <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-            <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-            <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -651,14 +669,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/admiral.bin.dbg">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-52.232597">
-          <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="jar:///Library/Java/JavaVirtualMachines/jdk1.8.0_40.jdk/Contents/Home/jre/lib/rt.jar!/sun/misc/Unsafe.class">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-5.6296296">
@@ -672,16 +682,6 @@
         <state vertical-scroll-proportion="2.9566004">
           <caret line="111" column="16" selection-start-line="111" selection-start-column="16" selection-end-line="111" selection-end-column="16" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="36" column="0" selection-start-line="36" selection-start-column="0" selection-end-line="36" selection-end-column="0" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -703,18 +703,50 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/KeyMapping.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.07272727">
+          <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/DCPU.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.681736">
-          <caret line="883" column="0" selection-start-line="883" selection-start-column="0" selection-end-line="883" selection-end-column="0" />
+        <state vertical-scroll-proportion="0.0">
+          <caret line="649" column="36" selection-start-line="649" selection-start-column="36" selection-end-line="649" selection-end-column="36" />
           <folding>
             <element signature="e#1015#1029#0" expanded="true" />
-            <element signature="method#getValA#0;class#DCPU#0" expanded="false" />
-            <element signature="method#get#0;class#DCPU#0" expanded="false" />
+            <element signature="method#getInstructionLength#0;class#DCPU#0" expanded="false" />
+            <element signature="method#skip#0;class#DCPU#0" expanded="false" />
             <element signature="method#tick#0;class#DCPU#0" expanded="false" />
-            <element signature="method#interrupt#0;class#DCPU#0" expanded="false" />
-            <element signature="method#tickHardware#0;class#DCPU#0" expanded="false" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/DebugData.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="134" column="35" selection-start-line="134" selection-start-column="35" selection-end-line="134" selection-end-column="35" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/admiral.bin.dbg2">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/megastage/emulator/Disassembler.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.24969697">
+          <caret line="158" column="38" selection-start-line="158" selection-start-column="38" selection-end-line="158" selection-end-column="38" />
+          <folding />
         </state>
       </provider>
     </entry>

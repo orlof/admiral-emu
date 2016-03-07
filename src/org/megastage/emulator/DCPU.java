@@ -645,7 +645,12 @@ public class DCPU
     }
 
     public void loadDebugInfo(String filename) throws IOException {
-        debugData = DebugData.load(filename);
+        File dd = new File(filename);
+        if(dd.isFile()) {
+            debugData = DebugData.load(filename);
+        } else {
+            debugData = DebugData.fromRam(ram);
+        }
     }
 
     public static void main(String[] args) throws Exception {
